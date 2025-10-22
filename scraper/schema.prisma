@@ -8,173 +8,196 @@ generator client {
 }
 
 model Year {
-	id String @id @default(cuid())
-	year Int
+	year Int @id
 	terms Term[]
-
-	@@unique([year])
 }
 
 model Term {
-	id String @id @default(cuid())
 	term String
+	// for foreign key
+	year Int
+
 	departments Department[]
+	yearFK Year @relation(fields: [year], references: [year], onDelete: Cascade)
 
-	yearId String
-	year Year @relation(fields: [yearId], references: [id])
-
-	@@unique([term, yearId])
+	@@id([term, year])
 }
 
 model Department {
-	id String @id @default(cuid())
 	department String
 	value String
 	name String?
+	// for foreign key
+	term String @db.VarChar(10)
+	year Int
+
 	courseNumbers CourseNumber[]
+	termFK Term @relation(fields: [term, year], references: [term, year], onDelete: Cascade)
 
-	termId String
-	term Term @relation(fields: [termId], references: [id])
-
-	@@unique([department, termId])
+	@@id([department, term, year])
 }
 
 model CourseNumber {
-	id String @id @default(cuid())
-	text String
+	courseNumber String
 	value String
 	title String
+	// for foreign key
+	department String @db.VarChar(10)
+	term String @db.VarChar(10)
+	year Int
 	
 	sections Section[]
+	departmentFK Department @relation(fields: [department, term, year], references: [department, term, year], onDelete: Cascade)	
 
-	departmentId String
-	department Department @relation(fields: [departmentId], references: [id])	
-
-	@@unique([text, departmentId])
+	@@id([courseNumber, department, term, year])
 }
 
 model Section {
-	id String @id @default(cuid())
-	text String
-	value String
-	title String
-	classType String
-	sectionCode String
-	associatedClass String
+	section String // C100 @map("text")
+	value String // c100
+	title String // Genetics
+	classType String? // e - for enrollment, n - for non-enrollment
+	sectionCode String? // LEC, TUT, LAB, SEM
+	associatedClass String? // Applies to non-enrollment sections only. Indicates which enrollment section (e.g. classType: "e") it belongs to.
+	// for foreign key
+	courseNumber String @db.VarChar(10)
+	department String @db.VarChar(10)
+	term String @db.VarChar(10)
+	year Int
 
 	outlines CourseOutline[]
+	courseNumberFK CourseNumber @relation(fields: [courseNumber, department, term, year], references: [courseNumber, department, term, year], onDelete: Cascade)
 
-	courseNumberId String
-	courseNumber CourseNumber @relation(fields: [courseNumberId], references: [id])
-
-	@@unique([classType, sectionCode, associatedClass, courseNumberId])
+	@@id([section, courseNumber, department, term, year])
 }
 
 model CourseOutline {
-  id                      String   @id @default(cuid())
-  name                    String
-  title                   String
-  description             String?  @db.Text
-  dept                    String
-  number                  String // e.g., "100W"
-  section                 String // e.g., "D100"
-  classNumber             String   @unique // e.g., "2921"
-  term                    String // e.g., "Summer 2015"
-  units                   String // "3" - kept as String, as in JSON
-  type                    String // "e"
-  degreeLevel             String // "UGRD"
-  deliveryMethod          String
-  designation             String?
-  outlinePath             String   @unique
-  specialTopic            String?
-  shortNote               String?
-  courseDetails           String?  @db.Text
-  educationalGoals        String?  @db.Text
-  gradingNotes            String?  @db.Text
-  prerequisites           String?  @db.Text
-  corequisites            String?
-  registrarNotes          String?  @db.Text
-  departmentalUgradNotes  String?
-  requiredReadingNotes    String?
-  notes                   String?
+	name                    String
+	title                   String
+	description             String?  @db.Text
+	dept                    String
+	number                  String // e.g., "100W"
+	section                 String @db.VarChar(10)// e.g., "D100"
+	classNumber             String @unique // e.g., "2921"
+	term                    String // e.g., "Summer 2015"
+	units                   String? // "3" - kept as String, as in JSON
+	type                    String // "e"
+	degreeLevel             String // "UGRD"
+	deliveryMethod          String
+	designation             String?
+	outlinePath             String   @unique
+	specialTopic            String?
+	shortNote               String?
+	courseDetails           String?  @db.Text
+	educationalGoals        String?  @db.Text
+	gradingNotes            String?  @db.Text
+	prerequisites           String?  @db.Text
+	corequisites            String?
+	registrarNotes          String?  @db.Text
+	departmentalUgradNotes  String? @db.Text
+	departmentalGradNotes  String? @db.Text
+	requiredReadingNotes    String?
+	notes                   String? @db.Text
+	codeNotes String?
+	materials String? @db.Text
+	requirements String? @db.Text
+	graduateStudiesNotes String? @db.Text
+	// for foreign key
+	courseNumber String @db.VarChar(10)
+	department String @db.VarChar(10)
+	termStr String @db.VarChar(10)
+	year Int
 
-  // --- Relationships to other models ---
-  
-  // Relation to the "instructor" array
-  instructors           Instructor[]
-  
-  // Relation to the "courseSchedule" array
-  schedule              CourseSchedule[]
-  
-  // Relation to the "grades" array
-  gradingComponents     GradingComponent[]
-  
-  // Relation to the "requiredText" array
-  requiredTexts         RequiredText[]
+	// --- Relationships to other models ---
+	
+	// Relation to the "instructor" array
+	instructors           Instructor[]
+	// Relation to the "courseSchedule" array
+	schedule              CourseSchedule[]
+	// Relation to the "grades" array
+	gradingComponents     GradingComponent[]
+	// Relation to the "requiredText" array
+	requiredTexts         RequiredText[]
+	sectionFK Section @relation(fields: [section, courseNumber, department, termStr, year], references: [section, courseNumber, department, term, year], onDelete: Cascade)
 
-  sectionId String
-  sectionParent Section @relation(fields: [sectionId], references: [id])
-
-  @@unique([number, section, term, sectionId])
+	@@id([classNumber, section, courseNumber, department, termStr, year])
 }
 
 // Model for objects in the "instructor" array
 model Instructor {
-  id          String  @id @default(cuid())
-  name        String
-  commonName  String?
-  firstName   String
-  lastName    String
-  email       String?
-  phone       String?
-  office      String?
-  officeHours String?
-  profileUrl  String?
-  roleCode    String  // "PI"
+	name        String // Mark Fettes
+	commonName  String? // Mark
+	firstName   String // Mark
+	lastName    String // Fettes
+	email       String? // mtfettes@sfu.ca
+	phone       String? // 778-782-4489
+	office      String?
+	officeHours String?
+	profileUrl  String?
+	roleCode    String  // "PI"
+	classNumber String @db.VarChar(10)
+	section String @db.VarChar(10)
+	courseNumber String @db.VarChar(10)
+	department String @db.VarChar(10)
+	term String @db.VarChar(10)
+	year Int
 
-  // Foreign key to link back to the Course
-  courseId String
-  course   CourseOutline @relation(fields: [courseId], references: [id], onDelete: Cascade)
+	// Foreign key to link back to the Course
+	courseOutlineFK CourseOutline @relation(fields: [classNumber, section, courseNumber, department, term, year], references: [classNumber, section, courseNumber, department, termStr, year], onDelete: Cascade)
 
-  @@unique([name, courseId])
+	@@id([name, classNumber, section, department, term, year])
 }
 
 // Model for objects in the "courseSchedule" array
 model CourseSchedule {
-  id          String  @id @default(cuid())
-  sectionCode String  // "SEM"
-  campus      String
-  days        String  // "Mo, We"
-  startTime   String  // "9:30"
-  endTime     String  // "13:20"
-  startDate   String  // Kept as String, not valid ISO 8601
-  endDate     String  // Kept as String, not valid ISO 8601
-  isExam      Boolean
+	id String @id @default(uuid())
+	sectionCode String  // "SEM"
+	campus      String
+	days        String  // "Mo, We"
+	startTime   String  // "9:30"
+	endTime     String  // "13:20"
+	startDate   String  // Kept as String, not valid ISO 8601
+	endDate     String  // Kept as String, not valid ISO 8601
+	isExam      Boolean
+	// for foreign key
+	classNumber String @db.VarChar(10)
+	section String @db.VarChar(10)
+	courseNumber String @db.VarChar(10)
+	department String @db.VarChar(10)
+	term String @db.VarChar(10)
+	year Int
 
-  // Foreign key to link back to the Course
-  courseId String
-  course   CourseOutline @relation(fields: [courseId], references: [id], onDelete: Cascade)
-
-  @@unique([days, startTime, endTime, courseId])
+	// Foreign key to link back to the Course
+	courseOutlineFK CourseOutline @relation(fields: [classNumber, section, courseNumber, department, term, year], references: [classNumber, section, courseNumber, department, termStr, year], onDelete: Cascade)
 }
 
 // Model for objects in the "grades" array
 model GradingComponent {
-  id          String @id @default(cuid())
-  description String @db.Text
-  weight      String // "25" - kept as String, as in JSON
+	id String @id @default(uuid())
+	description String @db.Text
+	weight      String // "25" - kept as String, as in JSON
 
-  // Foreign key to link back to the Course
-  courseId String
-  course   CourseOutline @relation(fields: [courseId], references: [id], onDelete: Cascade)
+	// Foreign key to link back to the Course
+	classNumber String @db.VarChar(10)
+	section String @db.VarChar(10)
+	courseNumber String @db.VarChar(10)
+	department String @db.VarChar(10)
+	term String @db.VarChar(10)
+	year Int
+	courseOutlineFK CourseOutline @relation(fields: [classNumber, section, courseNumber, department, term, year], references: [classNumber, section, courseNumber, department, termStr, year], onDelete: Cascade)
 }
 
 // Model for objects in the "requiredText" array
 model RequiredText {
-  id      String @id @default(cuid())
-  details String @db.Text
+	id String @id @default(uuid())
+	details String @db.Text
 
-  // Foreign key to link back to the Course
-  courseId String
-  course   CourseOutline @relation(fields: [courseId], references: [id], onDelete: Cascade)
+	// Foreign key to link back to the Course
+	classNumber String @db.VarChar(10)
+	section String @db.VarChar(10)
+	courseNumber String @db.VarChar(10)
+	department String @db.VarChar(10)
+	term String @db.VarChar(10)
+	year Int
+	courseOutlineFK CourseOutline @relation(fields: [classNumber, section, courseNumber, department, term, year], references: [classNumber, section, courseNumber, department, termStr, year], onDelete: Cascade)
 }

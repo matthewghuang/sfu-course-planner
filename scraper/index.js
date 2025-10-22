@@ -20,8 +20,8 @@ async function scrapeYears() {
 
 async function scrapeTerms() {
 	const years = await prisma.year.findMany();
-	for (const year of years) {
-		const yearNumber = year.year;
+	for (const yearObj of years) {
+		const yearNumber = yearObj.year;
 
 		const responseJson = await ky.get(BASE_URL + `?${yearNumber}`).json();
 
@@ -30,7 +30,7 @@ async function scrapeTerms() {
 				await prisma.term.create({
 					data: {
 						term: term.value,
-						yearId: year.id,
+						year: yearNumber,
 					},
 				});
 			} catch (error) {
@@ -41,23 +41,21 @@ async function scrapeTerms() {
 }
 
 async function scrapeDepartments() {
-	const terms = await prisma.term.findMany({
-		include: {
-			year: {
-				select: {
-					year: true,
+	const terms = await prisma.term.findMany();
+
+	await terms.forEach(async (termObj) => {
+		const term = termObj.term;
+		const year = termObj.year;
+
+		const responseJson = await ky
+			.get(BASE_URL + `?${year}/${term}`, {
+				retry: {
+					retryOnTimeout: true,
 				},
-			},
-		},
-	});
+			})
+			.json();
 
-	await terms.forEach(async (term) => {
-		const termSeason = term.term;
-		const year = term.year.year;
-
-		const json = await ky.get(BASE_URL + `?${year}/${termSeason}`).json();
-
-		json.forEach(async (department) => {
+		responseJson.forEach(async (department) => {
 			const name = department.name ?? undefined;
 
 			try {
@@ -66,42 +64,175 @@ async function scrapeDepartments() {
 						department: department.text,
 						value: department.value,
 						name: name,
-						termId: term.id,
+						term: term,
+						year: year,
 					},
 				});
 			} catch (error) {
-				if (error.code != "P2002") console.log(error);
+				if (error.code != "P2002") console.error(error);
 			}
 		});
 	});
 }
 
 async function scrapeCourseNumbers() {
-	const departments = await prisma.department.findMany({
-		include: {
-			term: {
-				include: {
-					year: true,
-				},
-			},
+	const departments = await prisma.department.findMany();
+
+	departments.forEach(async (departmentObj) => {
+		const department = departmentObj.department;
+		const term = departmentObj.term;
+		const year = departmentObj.year;
+
+		try {
+			const responseJson = await ky
+				.get(BASE_URL + `?${year}/${term}/${department}`, {
+					retry: {
+						retryOnTimeout: true,
+					},
+				})
+				.json();
+
+			// modify it to include foreign key data and alter "text" field to be more descriptive
+			const alteredData = Array.from(responseJson).map((obj) => {
+				return {
+					courseNumber: obj.text,
+					value: obj.value,
+					title: obj.title ?? "",
+					department: department,
+					term: term,
+					year: year,
+				};
+			});
+
+			try {
+				await prisma.courseNumber.createMany({
+					data: alteredData,
+				});
+			} catch (error) {
+				if (error.code != "P2002") console.error(error);
+			}
+		} catch (error) {
+			if (error.response.status != 404) console.error(error);
+		}
+	});
+}
+
+async function scrapeSections() {
+	// const courseNumbers = await prisma.courseNumber.findMany({
+	// 	where: {
+	// 		year: 2022,
+	// 		OR: {
+	// 			year: 2023,
+	// 		},
+	// 	},
+	// });
+
+	const courseNumbers =
+		await prisma.$queryRaw`SELECT * FROM CourseNumber WHERE year BETWEEN 2022 AND 2026`;
+
+	courseNumbers.forEach(async (courseNumberObj) => {
+		const courseNumber = courseNumberObj.courseNumber;
+		const department = courseNumberObj.department;
+		const term = courseNumberObj.term;
+		const year = courseNumberObj.year;
+
+		try {
+			const responseJson = await ky
+				.get(
+					BASE_URL + `?${year}/${term}/${department}/${courseNumber}`,
+					{
+						retry: {
+							limit: 10,
+							retryOnTimeout: true,
+						},
+					}
+				)
+				.json();
+
+			// modify it to include foreign key data and alter "text" field to be more descriptive
+			const alteredData = Array.from(responseJson).map((obj) => {
+				return {
+					section: obj.text,
+					value: obj.value,
+					title: obj.title ?? "",
+					classType: obj.classType,
+					sectionCode: obj.sectionCode,
+					associatedClass: obj.associatedClass,
+					courseNumber: courseNumber,
+					department: department,
+					term: term,
+					year: year,
+				};
+			});
+
+			try {
+				await prisma.section.createMany({
+					data: alteredData,
+				});
+			} catch (error) {
+				if (error.code != "P2002") console.error(error);
+			}
+		} catch (error) {
+			if (error.response?.status != 404) console.error(error);
+		}
+	});
+}
+
+async function scrapeCourseOutlines() {
+	const sections = await prisma.section.findMany({
+		where: {
+			year: 2014,
 		},
 	});
 
-	departments.forEach((department) => {
-		const department = department.department;
-		const term = department.term.term;
-		const year = department.term.year.year;
+	sections.forEach(async (sectionObj) => {
+		const section = sectionObj.section;
+		const courseNumber = sectionObj.courseNumber;
+		const department = sectionObj.department;
+		const term = sectionObj.term;
+		const year = sectionObj.year;
 
-		// console.log(term, year);
+		try {
+			const responseJson = await ky
+				.get(
+					BASE_URL +
+						`?${year}/${term}/${department}/${courseNumber}/${section}`,
+					{
+						retry: {
+							limit: 10,
+							retryOnTimeout: true,
+						},
+					}
+				)
+				.json();
+
+			const alteredData = {
+				...responseJson.info,
+				courseNumber: courseNumber,
+				department: department,
+				termStr: term,
+				year: year,
+			};
+
+			try {
+				await prisma.courseOutline.createMany({
+					data: alteredData,
+				});
+			} catch (error) {
+				if (error.code != "P2002") console.error(error);
+			}
+		} catch (error) {
+			if (error.response?.status != 404) console.error(error);
+		}
 	});
-
-	console.log(departments);
 }
 
 // await scrapeYears();
 // await scrapeTerms();
 // await scrapeDepartments();
-await scrapeCourseNumbers();
+// await scrapeCourseNumbers();
+// await scrapeSections();
+await scrapeCourseOutlines();
 
 /*[
   { text: '2014', value: '2014' },
