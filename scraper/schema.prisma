@@ -1,0 +1,166 @@
+datasource db {
+	provider = "mysql"
+	url = "mysql://root:my_root_password@localhost:3306/sfu_course_data"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Year {
+	id String @id @default(cuid())
+	year Int @unique
+	terms Term[]
+}
+
+model Term {
+	id String @id @default(cuid())
+	termSeason String
+	departments Department[]
+
+	yearId String
+	year Year @relation(fields: [yearId], references: [id])
+}
+
+model Department {
+	id String @id @default(cuid())
+	department String
+	value String
+	courseNumbers CourseNumber[]
+
+	termSeason String
+	term Term @relation(fields: [termSeason], references: [id])
+}
+
+model CourseNumber {
+	id String @id @default(cuid())
+	text String
+	value String
+	title String
+	
+	sections Section[]
+
+	departmentId String
+	department Department @relation(fields: [departmentId], references: [id])	
+}
+
+model Section {
+	id String @id @default(cuid())
+	text String
+	value String
+	title String
+	classType String
+	sectionCode String
+	associatedClass String
+
+	outlines CourseOutline[]
+
+	courseNumberId String
+	courseNumber CourseNumber @relation(fields: [courseNumberId], references: [id])
+}
+
+model CourseOutline {
+  id                      String   @id @default(cuid())
+  name                    String
+  title                   String
+  description             String?  @db.Text
+  dept                    String
+  number                  String // e.g., "100W"
+  section                 String // e.g., "D100"
+  classNumber             String   @unique // e.g., "2921"
+  term                    String // e.g., "Summer 2015"
+  units                   String // "3" - kept as String, as in JSON
+  type                    String // "e"
+  degreeLevel             String // "UGRD"
+  deliveryMethod          String
+  designation             String?
+  outlinePath             String   @unique
+  specialTopic            String?
+  shortNote               String?
+  courseDetails           String?  @db.Text
+  educationalGoals        String?  @db.Text
+  gradingNotes            String?  @db.Text
+  prerequisites           String?  @db.Text
+  corequisites            String?
+  registrarNotes          String?  @db.Text
+  departmentalUgradNotes  String?
+  requiredReadingNotes    String?
+  notes                   String?
+
+  // --- Relationships to other models ---
+  
+  // Relation to the "instructor" array
+  instructors           Instructor[]
+  
+  // Relation to the "courseSchedule" array
+  schedule              CourseSchedule[]
+  
+  // Relation to the "grades" array
+  gradingComponents     GradingComponent[]
+  
+  // Relation to the "requiredText" array
+  requiredTexts         RequiredText[]
+
+  // A course is often uniquely identified by its number, section, and term
+  @@unique([dept, number, section, term])
+
+  sectionId String
+  sectionParent Section @relation(fields: [sectionId], references: [id])
+}
+
+// Model for objects in the "instructor" array
+model Instructor {
+  id          String  @id @default(cuid())
+  name        String
+  commonName  String?
+  firstName   String
+  lastName    String
+  email       String?
+  phone       String?
+  office      String?
+  officeHours String?
+  profileUrl  String?
+  roleCode    String  // "PI"
+
+  // Foreign key to link back to the Course
+  courseId String
+  course   CourseOutline @relation(fields: [courseId], references: [id], onDelete: Cascade)
+}
+
+// Model for objects in the "courseSchedule" array
+model CourseSchedule {
+  id          String  @id @default(cuid())
+  sectionCode String  // "SEM"
+  campus      String
+  days        String  // "Mo, We"
+  startTime   String  // "9:30"
+  endTime     String  // "13:20"
+  startDate   String  // Kept as String, not valid ISO 8601
+  endDate     String  // Kept as String, not valid ISO 8601
+  isExam      Boolean
+
+  // Foreign key to link back to the Course
+  courseId String
+  course   CourseOutline @relation(fields: [courseId], references: [id], onDelete: Cascade)
+}
+
+// Model for objects in the "grades" array
+model GradingComponent {
+  id          String @id @default(cuid())
+  description String @db.Text
+  weight      String // "25" - kept as String, as in JSON
+
+  // Foreign key to link back to the Course
+  courseId String
+  course   CourseOutline @relation(fields: [courseId], references: [id], onDelete: Cascade)
+}
+
+// Model for objects in the "requiredText" array
+model RequiredText {
+  id      String @id @default(cuid())
+  details String @db.Text
+
+  // Foreign key to link back to the Course
+  courseId String
+  course   CourseOutline @relation(fields: [courseId], references: [id], onDelete: Cascade)
+}

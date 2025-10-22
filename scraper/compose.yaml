@@ -5,7 +5,7 @@ services:
     # Service 1: The Node.js Application
     app:
         # Use an official Node.js image (Alpine for a smaller size)
-        image: node:20-alpine
+        image: node:25-alpine
         container_name: node_app
         # Set the working directory inside the container
         working_dir: /app
@@ -21,7 +21,7 @@ services:
             - "3000:3000"
         # Command to install dependencies and start the app
         # Assumes you have a "start" script in your package.json
-        command: sh -c "npm install && npm start"
+        # command: sh -c "npm install && npm start"
         # Environment variables your Node app can use to connect to the database
         environment:
             - DB_HOST=mysql
@@ -49,8 +49,8 @@ services:
             - db_data:/var/lib/mysql
         # Uncomment the ports section if you need to connect to the database
         # from your host machine (e.g., with a desktop client)
-        # ports:
-        #   - "3306:3306"
+        ports:
+            - "3306:3306"
 
     # Service 3: phpMyAdmin (Web interface for MySQL)
     phpmyadmin:
