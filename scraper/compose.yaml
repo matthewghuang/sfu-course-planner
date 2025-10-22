@@ -1,0 +1,73 @@
+# Use version 3.8 for modern Docker Compose features
+version: "3.8"
+
+services:
+    # Service 1: The Node.js Application
+    app:
+        # Use an official Node.js image (Alpine for a smaller size)
+        image: node:20-alpine
+        container_name: node_app
+        # Set the working directory inside the container
+        working_dir: /app
+        # Mount the current directory (.) into the container's /app directory
+        # This allows you to edit code locally and see changes live (with nodemon)
+        volumes:
+            - .:/app
+            # Use an anonymous volume to store node_modules inside the container.
+            # This prevents your local node_modules from overwriting the container's.
+            - /app/node_modules
+        # Expose port 3000 on your host machine
+        ports:
+            - "3000:3000"
+        # Command to install dependencies and start the app
+        # Assumes you have a "start" script in your package.json
+        command: sh -c "npm install && npm start"
+        # Environment variables your Node app can use to connect to the database
+        environment:
+            - DB_HOST=mysql
+            - DB_USER=my_user
+            - DB_PASSWORD=my_password
+            - DB_NAME=my_database
+        # This service depends on the 'mysql' service starting first
+        depends_on:
+            - mysql
+
+    # Service 2: The MySQL Database
+    mysql:
+        image: mysql:8.0
+        container_name: mysql_db
+        # Always restart the database unless it's manually stopped
+        restart: unless-stopped
+        # Environment variables to configure the MySQL instance
+        environment:
+            MYSQL_DATABASE: my_database
+            MYSQL_USER: my_user
+            MYSQL_PASSWORD: my_password
+            MYSQL_ROOT_PASSWORD: my_root_password
+        # Mount a named volume to persist database data
+        volumes:
+            - db_data:/var/lib/mysql
+        # Uncomment the ports section if you need to connect to the database
+        # from your host machine (e.g., with a desktop client)
+        # ports:
+        #   - "3306:3306"
+
+    # Service 3: phpMyAdmin (Web interface for MySQL)
+    phpmyadmin:
+        image: phpmyadmin:latest
+        container_name: phpmyadmin_ui
+        restart: unless-stopped
+        # Expose port 8080 on your host machine
+        ports:
+            - "8080:80"
+        # Environment variables to link phpMyAdmin to the MySQL container
+        environment:
+            - PMA_HOST=mysql # This 'mysql' matches the service name above
+            - PMA_PORT=3306
+        # This service depends on the 'mysql' service
+        depends_on:
+            - mysql
+
+# Define the named volume for persisting database data
+volumes:
+    db_data:
