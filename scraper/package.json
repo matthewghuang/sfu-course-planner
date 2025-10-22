@@ -7,7 +7,7 @@
 	"type": "module",
 	"main": "index.ts",
 	"scripts": {
-		"start": "node index.ts",
+		"start": "prisma db push && node index.js",
 		"test": "echo \"Error: no test specified\" && exit 1"
 	},
 	"dependencies": {

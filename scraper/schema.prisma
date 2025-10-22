@@ -9,27 +9,34 @@ generator client {
 
 model Year {
 	id String @id @default(cuid())
-	year Int @unique
+	year Int
 	terms Term[]
+
+	@@unique([year])
 }
 
 model Term {
 	id String @id @default(cuid())
-	termSeason String
+	term String
 	departments Department[]
 
 	yearId String
 	year Year @relation(fields: [yearId], references: [id])
+
+	@@unique([term, yearId])
 }
 
 model Department {
 	id String @id @default(cuid())
 	department String
 	value String
+	name String?
 	courseNumbers CourseNumber[]
 
-	termSeason String
-	term Term @relation(fields: [termSeason], references: [id])
+	termId String
+	term Term @relation(fields: [termId], references: [id])
+
+	@@unique([department, termId])
 }
 
 model CourseNumber {
@@ -42,6 +49,8 @@ model CourseNumber {
 
 	departmentId String
 	department Department @relation(fields: [departmentId], references: [id])	
+
+	@@unique([text, departmentId])
 }
 
 model Section {
@@ -57,6 +66,8 @@ model Section {
 
 	courseNumberId String
 	courseNumber CourseNumber @relation(fields: [courseNumberId], references: [id])
+
+	@@unique([classType, sectionCode, associatedClass, courseNumberId])
 }
 
 model CourseOutline {
@@ -101,11 +112,10 @@ model CourseOutline {
   // Relation to the "requiredText" array
   requiredTexts         RequiredText[]
 
-  // A course is often uniquely identified by its number, section, and term
-  @@unique([dept, number, section, term])
-
   sectionId String
   sectionParent Section @relation(fields: [sectionId], references: [id])
+
+  @@unique([number, section, term, sectionId])
 }
 
 // Model for objects in the "instructor" array
@@ -125,6 +135,8 @@ model Instructor {
   // Foreign key to link back to the Course
   courseId String
   course   CourseOutline @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([name, courseId])
 }
 
 // Model for objects in the "courseSchedule" array
@@ -142,6 +154,8 @@ model CourseSchedule {
   // Foreign key to link back to the Course
   courseId String
   course   CourseOutline @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([days, startTime, endTime, courseId])
 }
 
 // Model for objects in the "grades" array
