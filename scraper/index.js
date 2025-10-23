@@ -206,8 +206,12 @@ async function scrapeCourseOutlines() {
 				)
 				.json();
 
-			const alteredData = {
+			const infoWithFK = {
 				...responseJson.info,
+				instructors: responseJson.instructors,
+				schedule: responseJson.courseSchedule,
+				gradingComponents: responseJson.grades,
+				requiredTexts: responseJson.requiredTexts,
 				courseNumber: courseNumber,
 				department: department,
 				termStr: term,
@@ -215,12 +219,51 @@ async function scrapeCourseOutlines() {
 			};
 
 			try {
-				await prisma.courseOutline.createMany({
-					data: alteredData,
+				await prisma.courseOutline.create({
+					data: infoWithFK,
 				});
 			} catch (error) {
 				if (error.code != "P2002") console.error(error);
+				// console.error(error);
 			}
+
+			const courseName = infoWithFK.name;
+
+			const subsectionScrape = async (sub, table) => {
+				if (sub) {
+					const propWithFK = Array.from(sub).map((subObj) => {
+						return {
+							...subObj,
+							courseName: courseName,
+							section: section,
+							courseNumber: courseNumber,
+							department: department,
+							term: term,
+							year: year,
+						};
+					});
+
+					try {
+						await table.createMany({
+							data: propWithFK,
+							skipDuplicates: true,
+						});
+					} catch (error) {
+						if (error.code != "P2002") {
+							console.error(error);
+							console.log(propWithFK);
+						}
+					}
+				}
+			};
+
+			// subsectionScrape(responseJson.instructor, prisma.instructor);
+			// subsectionScrape(
+			// 	responseJson.courseSchedule,
+			// 	prisma.courseSchedule
+			// );
+			// subsectionScrape(responseJson.grades, prisma.gradingComponent);
+			// subsectionScrape(responseJson.requiredText, prisma.requiredText);
 		} catch (error) {
 			if (error.response?.status != 404) console.error(error);
 		}
