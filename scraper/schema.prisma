@@ -8,70 +8,76 @@ generator client {
 }
 
 model Year {
-	year Int @id
+	id Int @id @default(autoincrement())
+	text String
+	value String @unique
 	terms Term[]
 }
 
 model Term {
-	term String
-	// for foreign key
-	year Int
+	id Int @id @default(autoincrement())
+	text String
+	value String
 
+	// each term has many departments
 	departments Department[]
-	yearFK Year @relation(fields: [year], references: [year], onDelete: Cascade)
 
-	@@id([term, year])
+	yearId Int
+	year Year @relation(fields: [yearId], references: [id], onDelete: Cascade)
+
+	@@unique([value, yearId])
 }
 
 model Department {
-	department String
+	id Int @id @default(autoincrement())
+	text String
 	value String
 	name String?
-	// for foreign key
-	term String @db.VarChar(10)
-	year Int
 
 	courseNumbers CourseNumber[]
-	termFK Term @relation(fields: [term, year], references: [term, year], onDelete: Cascade)
 
-	@@id([department, term, year])
+	termId Int
+	term Term @relation(fields: [termId], references: [id], onDelete: Cascade)
+
+	@@unique([value, termId])
 }
 
 model CourseNumber {
-	courseNumber String
+	id Int @id @default(autoincrement())
+
+	text String
 	value String
 	title String
-	// for foreign key
-	department String @db.VarChar(10)
-	term String @db.VarChar(10)
-	year Int
 	
 	sections Section[]
-	departmentFK Department @relation(fields: [department, term, year], references: [department, term, year], onDelete: Cascade)	
 
-	@@id([courseNumber, department, term, year])
+	departmentId Int
+	department Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)	
+
+	@@unique([value, departmentId])
 }
 
 model Section {
-	section String // C100 @map("text")
+	id Int @id @default(autoincrement())
+
+	text String // C100
 	value String // c100
 	title String // Genetics
 	classType String? // e - for enrollment, n - for non-enrollment
 	sectionCode String? // LEC, TUT, LAB, SEM
 	associatedClass String? // Applies to non-enrollment sections only. Indicates which enrollment section (e.g. classType: "e") it belongs to.
-	// for foreign key
-	courseNumber String @db.VarChar(10)
-	department String @db.VarChar(10)
-	term String @db.VarChar(10)
-	year Int
 
 	outlines CourseOutline[]
-	courseNumberFK CourseNumber @relation(fields: [courseNumber, department, term, year], references: [courseNumber, department, term, year], onDelete: Cascade)
 
-	@@id([section, courseNumber, department, term, year])
+	courseNumberId Int
+	courseNumber CourseNumber @relation(fields: [courseNumberId], references: [id], onDelete: Cascade)
+
+	@@unique([value, courseNumberId])
 }
 
 model CourseOutline {
+	id Int @id @default(autoincrement())
+
 	name                    String
 	title                   String
 	description             String?  @db.Text
@@ -102,25 +108,22 @@ model CourseOutline {
 	materials String? @db.Text
 	requirements String? @db.Text
 	graduateStudiesNotes String? @db.Text
-	// for foreign key
-	courseNumber String @db.VarChar(10)
-	department String @db.VarChar(10)
-	termStr String @db.VarChar(10)
-	year Int
 
 	// --- Relationships to other models ---
 	
 	// Relation to the "instructor" array
 	instructors           Json?
 	// Relation to the "courseSchedule" array
-	schedule              Json?
+	courseSchedule Json?
 	// Relation to the "grades" array
-	gradingComponents     Json?
+	grades Json?
 	// Relation to the "requiredText" array
 	requiredTexts         Json?
-	sectionFK Section @relation(fields: [section, courseNumber, department, termStr, year], references: [section, courseNumber, department, term, year], onDelete: Cascade)
 
-	@@id([name, section, courseNumber, department, termStr, year])
+	sectionId Int
+	sectionParent Section @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+
+	@@unique([name, sectionId])
 }
 
 // // Model for objects in the "instructor" array
