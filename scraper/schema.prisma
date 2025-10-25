@@ -7,75 +7,17 @@ generator client {
   provider = "prisma-client-js"
 }
 
-model Year {
-	id Int @id @default(autoincrement())
-	text String
-	value String @unique
-	terms Term[]
-}
-
-model Term {
-	id Int @id @default(autoincrement())
-	text String
-	value String
-
-	// each term has many departments
-	departments Department[]
-
-	yearId Int
-	year Year @relation(fields: [yearId], references: [id], onDelete: Cascade)
-
-	@@unique([value, yearId])
-}
-
-model Department {
-	id Int @id @default(autoincrement())
-	text String
-	value String
-	name String?
-
-	courseNumbers CourseNumber[]
-
-	termId Int
-	term Term @relation(fields: [termId], references: [id], onDelete: Cascade)
-
-	@@unique([value, termId])
-}
-
-model CourseNumber {
-	id Int @id @default(autoincrement())
-
-	text String
-	value String
-	title String
-	
-	sections Section[]
-
-	departmentId Int
-	department Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)	
-
-	@@unique([value, departmentId])
-}
-
-model Section {
-	id Int @id @default(autoincrement())
-
-	text String // C100
-	value String // c100
-	title String // Genetics
-	classType String? // e - for enrollment, n - for non-enrollment
-	sectionCode String? // LEC, TUT, LAB, SEM
-	associatedClass String? // Applies to non-enrollment sections only. Indicates which enrollment section (e.g. classType: "e") it belongs to.
-
-	outlines CourseOutline[]
-
-	courseNumberId Int
-	courseNumber CourseNumber @relation(fields: [courseNumberId], references: [id], onDelete: Cascade)
-
-	@@unique([value, courseNumberId])
-}
-
 model CourseOutline {
+	id Int @id @default(autoincrement())
+
+	info CourseInfo?
+	instructor CourseInstructor[]
+	courseSchedule CourseSchedule[]
+	grade CourseGrade[]
+	requiredText CourseRequiredText[]
+}
+
+model CourseInfo {
 	id Int @id @default(autoincrement())
 
 	name                    String
@@ -109,103 +51,60 @@ model CourseOutline {
 	requirements String? @db.Text
 	graduateStudiesNotes String? @db.Text
 
-	// --- Relationships to other models ---
-	
-	// Relation to the "instructor" array
-	instructors           Json?
-	// Relation to the "courseSchedule" array
-	courseSchedule Json?
-	// Relation to the "grades" array
-	grades Json?
-	// Relation to the "requiredText" array
-	requiredTexts         Json?
-
-	sectionId Int
-	sectionParent Section @relation(fields: [sectionId], references: [id], onDelete: Cascade)
-
-	@@unique([name, sectionId])
+	courseOutlineId Int @unique
+	courseOutline CourseOutline @relation(fields: [courseOutlineId], references: [id], onDelete: Cascade)
 }
 
 // // Model for objects in the "instructor" array
-// model Instructor {
-// 	name        String // Mark Fettes
-// 	commonName  String? // Mark
-// 	firstName   String // Mark
-// 	lastName    String // Fettes
-// 	email       String? // mtfettes@sfu.ca
-// 	phone       String? // 778-782-4489
-// 	office      String?
-// 	officeHours String? @db.Text
-// 	profileUrl  String?
-// 	roleCode    String  // "PI"
-// 	courseName String
-// 	section String @db.VarChar(10)
-// 	courseNumber String @db.VarChar(10)
-// 	department String @db.VarChar(10)
-// 	term String @db.VarChar(10)
-// 	year Int
+model CourseInstructor {
+	id Int @id @default(autoincrement())
+	name        String // Mark Fettes
+	commonName  String? // Mark
+	firstName   String // Mark
+	lastName    String // Fettes
+	email       String? // mtfettes@sfu.ca
+	phone       String? // 778-782-4489
+	office      String?
+	officeHours String? @db.Text
+	profileUrl  String?
+	roleCode    String  // "PI"
 
-// 	// Foreign key to link back to the Course
-// 	courseOutlineFK CourseOutline @relation(fields: [courseName, section, courseNumber, department, term, year], references: [name, section, courseNumber, department, termStr, year], onDelete: Cascade)
+	courseOutlineId Int
+	courseOutline CourseOutline @relation(fields: [courseOutlineId], references: [id], onDelete: Cascade)
+}
 
-// 	@@id([name, courseName, section, department, term, year])
-// }
+// Model for objects in the "courseSchedule" array
+model CourseSchedule {
+	id Int @id @default(autoincrement())
+	sectionCode String  // "SEM"
+	campus      String?
+	days        String?  // "Mo, We"
+	startTime   String?  // "9:30"
+	endTime     String?  // "13:20"
+	startDate   String?  // Kept as String, not valid ISO 8601
+	endDate     String?  // Kept as String, not valid ISO 8601
+	isExam      Boolean
 
-// // Model for objects in the "courseSchedule" array
-// model CourseSchedule {
-// 	uuid String @default(uuid())
-// 	sectionCode String  // "SEM"
-// 	campus      String?
-// 	days        String?  // "Mo, We"
-// 	startTime   String?  // "9:30"
-// 	endTime     String?  // "13:20"
-// 	startDate   String?  // Kept as String, not valid ISO 8601
-// 	endDate     String?  // Kept as String, not valid ISO 8601
-// 	isExam      Boolean
-// 	// for foreign key
-// 	courseName String
-// 	section String @db.VarChar(10)
-// 	courseNumber String @db.VarChar(10)
-// 	department String @db.VarChar(10)
-// 	term String @db.VarChar(10)
-// 	year Int
+	courseOutlineId Int
+	courseOutline CourseOutline @relation(fields: [courseOutlineId], references: [id], onDelete: Cascade)
+}
 
-// 	// Foreign key to link back to the Course
-// 	courseOutlineFK CourseOutline @relation(fields: [courseName, section, courseNumber, department, term, year], references: [name, section, courseNumber, department, termStr, year], onDelete: Cascade)
+// Model for objects in the "grades" array
+model CourseGrade {
+	id Int @id @default(autoincrement())
+	description String @db.Text
+	weight      String? // "25" - kept as String, as in JSON
 
-// 	@@id([uuid, courseName, section, courseNumber, department, term, year])
-// }
+	courseOutlineId Int
+	courseOutline CourseOutline @relation(fields: [courseOutlineId], references: [id], onDelete: Cascade)
+}
 
-// // Model for objects in the "grades" array
-// model GradingComponent {
-// 	uuid String @default(uuid())
-// 	description String @db.Text
-// 	weight      String? // "25" - kept as String, as in JSON
+// Model for objects in the "requiredText" array
+model CourseRequiredText {
+	id Int @id @default(autoincrement())
+	details String @db.Text
+	isbn String?
 
-// 	// Foreign key to link back to the Course
-// 	courseName String
-// 	section String @db.VarChar(10)
-// 	courseNumber String @db.VarChar(10)
-// 	department String @db.VarChar(10)
-// 	term String @db.VarChar(10)
-// 	year Int
-// 	courseOutlineFK CourseOutline @relation(fields: [courseName, section, courseNumber, department, term, year], references: [name, section, courseNumber, department, termStr, year], onDelete: Cascade)
-// 	@@id([uuid, courseName, section, courseNumber, department, term, year])
-// }
-
-// // Model for objects in the "requiredText" array
-// model RequiredText {
-// 	uuid String @default(uuid())
-// 	details String @db.Text
-// 	isbn String?
-
-// 	// Foreign key to link back to the Course
-// 	courseName String
-// 	section String @db.VarChar(10)
-// 	courseNumber String @db.VarChar(10)
-// 	department String @db.VarChar(10)
-// 	term String @db.VarChar(10)
-// 	year Int
-// 	courseOutlineFK CourseOutline @relation(fields: [courseName, section, courseNumber, department, term, year], references: [name, section, courseNumber, department, termStr, year], onDelete: Cascade)
-// 	@@id([uuid, courseName, section, courseNumber, department, term, year])
-// }
+	courseOutlineId Int
+	courseOutline CourseOutline @relation(fields: [courseOutlineId], references: [id], onDelete: Cascade)
+}
